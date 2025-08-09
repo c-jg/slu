@@ -1,0 +1,10 @@
+__pycache__
+.idea
+.vscode
+
+*.pdf
+
+fluent_speech_commands_dataset
+
+eval_tests/
+TODO.txt
