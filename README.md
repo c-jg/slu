@@ -4,7 +4,7 @@ This project demonstrates a lightweight, end-to-end spoken language understandin
 
 The model is trained on the [fluent-speech-commands dataset](https://arxiv.org/pdf/1904.03670) to interpret voice commands in the format _"action-object-location"_ (e.g., "turn on the lights in the kitchen"). It serves as a proof-of-concept for building lightweight voice interfaces that can be deployed on resource-constrained devices.
 
-<img width="1561" height="680" alt="GUI Screenshot from 2025-08-11 19-33-56" src="https://github.com/user-attachments/assets/d251986d-aebf-4da2-947c-44a5be179b26" />
+![](slu_gradio_screenshot.png)
 
 ## Use Cases
 
