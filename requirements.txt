@@ -1,0 +1,7 @@
+torch
+torchaudio
+pandas
+matplotlib
+scikit-learn
+librosa
+gradio

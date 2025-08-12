@@ -14,7 +14,7 @@ from model import SLUTransformer
 from utils import build_label_map, pad_collate
 
 
-def train(output_path, dataset_base_dir, epochs, lr, batch_size, num_workers):
+def train(output_path, dataset_base_dir, epochs, lr, batch_size, num_workers, min_lr=1e-7):
     if not os.path.exists(output_path):
         os.mkdir(output_path)
         print(f"Created output folder: {output_path}")
@@ -45,7 +45,17 @@ def train(output_path, dataset_base_dir, epochs, lr, batch_size, num_workers):
     num_params = sum(p.numel() for p in model.parameters())
     print(f"Number of model parameters: {num_params}")
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=1e-4)
+    
+    # Add learning rate scheduler to prevent overfitting
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer,
+        mode='min',
+        factor=0.5,
+        patience=5,
+        min_lr=min_lr
+    )
+
     loss_fn = torch.nn.CrossEntropyLoss()
 
     # Lists to store training and validation metrics
@@ -77,7 +87,7 @@ def train(output_path, dataset_base_dir, epochs, lr, batch_size, num_workers):
 
         epoch_end_time = time.time()
         epoch_duration = epoch_end_time - epoch_start_time
-        
+
         # Store training loss
         train_losses.append(loss.item())
         print(f"Epoch {epoch+1} Loss: {loss.item():.4f}")
@@ -97,6 +107,11 @@ def train(output_path, dataset_base_dir, epochs, lr, batch_size, num_workers):
         avg_val_loss = val_loss / len(val_loader)
         val_losses.append(avg_val_loss)
         print(f"Validation Loss: {avg_val_loss:.4f}")
+        
+        # Update learning rate scheduler
+        scheduler.step(avg_val_loss)
+        current_lr = scheduler.get_last_lr()[0]
+        print(f"Current Learning Rate: {current_lr:.2e}")
 
         minutes = int(epoch_duration // 60)
         seconds = int(epoch_duration % 60)
@@ -187,6 +202,7 @@ if __name__ == '__main__':
     parser.add_argument("--lr", type=float, default=0.0001, help="Learning rate")
     parser.add_argument("--batch_size", type=int, default=64, help="Batch size for training and evaluation")
     parser.add_argument("--num_workers", type=int, default=6, help="Number of DataLoader worker processes")
+    parser.add_argument("--min_lr", type=float, default=1e-7, help="Minimum learning rate for scheduler")
 
     args = parser.parse_args()
 
@@ -196,5 +212,6 @@ if __name__ == '__main__':
         epochs=args.epochs, 
         lr=args.lr, 
         batch_size=args.batch_size,
-        num_workers=args.num_workers
+        num_workers=args.num_workers,
+        min_lr=args.min_lr
     )

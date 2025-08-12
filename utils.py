@@ -6,10 +6,12 @@ import librosa
 from torch.nn.utils.rnn import pad_sequence
 
 
-def load_fbank(audio_path, sample_rate=16000):
-    waveform, sr = torchaudio.load(audio_path)
-
-    assert sr == sample_rate, f"Sample rate mismatch! {audio_path} ({sr}) should be {sample_rate}"
+def load_fbank(audio_path, sample_rate=16000, is_waveform=False):
+    if is_waveform:
+        waveform, sr = audio_path, sample_rate
+    else:
+        waveform, sr = torchaudio.load(audio_path)
+        assert sr == sample_rate, f"Sample rate mismatch! {audio_path} ({sr}) should be {sample_rate}"
 
     transform = T.MelSpectrogram(
         sample_rate=sr, 
@@ -79,7 +81,7 @@ def plot_spectrogram(specgram, title=None, ylabel="freq_bin", ax=None):
 
 
 if __name__ == "__main__":
-    test_file = "fluent_speech_commands_dataset/wavs/speakers/5o9BvRGEGvhaeBwA/0cc59730-44eb-11e9-a1ea-79ca03012c0e.wav"
+    test_file = "examples/turn-the-lights-on-in-the-kitchen_activate-lights-kitchen.wav"
     signal, sr = torchaudio.load(test_file)
     fig, axs = plt.subplots(2, 1)
     plot_waveform(signal, sr, title="Original waveform", ax=axs[0])

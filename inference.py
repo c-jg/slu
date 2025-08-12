@@ -1,5 +1,6 @@
 import argparse
 import json
+import time
 
 import torch
 import pandas as pd
@@ -8,7 +9,7 @@ from model import SLUTransformer
 from utils import load_fbank, build_label_map
 
 
-def inference(wav, model, train_csv):
+def inference(wav, model_path, train_csv):
     print("Loading train CSV and label map...")
     train_df = pd.read_csv(train_csv)
     label_map = build_label_map(train_df)
@@ -19,21 +20,31 @@ def inference(wav, model, train_csv):
     num_classes = len(label_map)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = SLUTransformer(num_classes=num_classes).to(device)
-    model.load_state_dict(torch.load(model, map_location=device))
+    model.load_state_dict(torch.load(model_path, map_location=device))
     model.eval()
+    model.compile()
 
     # Feature extraction
-    print("Extracting features...")
     features = load_fbank(wav)  # (T, 320)
     features = torch.as_tensor(features, dtype=torch.float32).unsqueeze(0).to(device)  # (1, T, 320)
 
+    print("Warming up model...")
+    with torch.no_grad():
+        _ = model(features)
+        torch.cuda.synchronize()
+    print("Warmup complete.")
+
     # Inference
+    start_time = time.time()
     with torch.no_grad():
         logits = model(features)
-        pred_id = torch.argmax(logits, dim=1).item()
-        pred_label = id2label[pred_id]
-        probabilities = torch.softmax(logits, dim=1)
-        confidence_score = probabilities[0, pred_id].item()
+        torch.cuda.synchronize()
+    inference_time = (time.time() - start_time) * 1000  # ms
+
+    pred_id = torch.argmax(logits, dim=1).item()
+    pred_label = id2label[pred_id]
+    probabilities = torch.softmax(logits, dim=1)
+    confidence_score = probabilities[0, pred_id].item()
 
     action, object, location = pred_label.split("-")
 
@@ -47,6 +58,7 @@ def inference(wav, model, train_csv):
     print(f"WAV file: {wav}")
     print(f"Prediction:\n{json.dumps(response_data, indent=4)}")
     print(f"Confidence score: {confidence_score:.4f}")
+    print(f"Inference time: {inference_time:.1f} ms")
 
     return
 
@@ -62,6 +74,6 @@ if __name__ == "__main__":
 
     inference(
         wav=args.wav,
-        model=args.model,
+        model_path=args.model,
         train_csv=args.train_csv
     )
